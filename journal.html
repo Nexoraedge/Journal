@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Digital Journal Notebook</title>
+    <style>
+        *{
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background-color: #f0e6d3;
+            font-family: 'Gochi Hand', cursive;
+            margin: 0;
+            padding: 10px;
+            background-image: linear-gradient(#e0d5c3 1px, transparent 1px);
+            background-size: 100% 2em;
+        }
+
+        .container {
+            display: flex;
+            max-width: 95%;
+            margin: 0 auto;
+        }
+
+        .sidebar {
+            width: 250px;
+            padding-right: 20px;
+            border-right: 2px solid #8b4513;
+            height: 97vh;
+            overflow-y: auto;
+        }
+
+        .entries-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .entry-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: #fff9e8;
+            border-radius: 3px;
+            cursor: pointer;
+            border: 1px solid #d4c4a8;
+        }
+
+        .editor-container {
+            flex: 1;
+            padding-left: 20px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 80vh;
+            background: transparent;
+            border: none;
+            resize: none;
+            padding: 20px;
+            font-family: 'Gochi Hand', cursive;
+            font-size: 1.2em;
+            line-height: 2.4em;
+            padding-top: 0.4em;
+            background-image: linear-gradient(to bottom, transparent 1.5em, #f0e6d3 1.5em);
+            background-size: 100% 2.4em;
+            overflow-y: scroll;
+        }
+
+        textarea:focus {
+            outline: none;
+        }
+
+        .save-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: #8b4513;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-family: Arial, sans-serif;
+            transition: all 0.3s ease;
+        }
+
+        /* Notebook paper effect */
+        .editor-container::before {
+            content: '';
+            position: absolute;
+            width: 2px;
+            height: 100%;
+            background: #ff9999;
+            left: 40px;
+            top: 0;
+        }
+
+        /* Add custom scrollbar */
+        .entries-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .entries-list::-webkit-scrollbar-track {
+            background: #f0e6d3;
+        }
+
+        .entries-list::-webkit-scrollbar-thumb {
+            background: #8b4513;
+            border-radius: 4px;
+        }
+
+        /* Add title input styling */
+        .entry-title {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-family: 'Gochi Hand', cursive;
+            font-size: 1.5em;
+            border: none;
+            background: transparent;
+            border-bottom: 2px solid #8b4513;
+        }
+
+        .entry-title:focus {
+            outline: none;
+            border-bottom-color: #6b3010;
+        }
+
+        /* Date display styling */
+        .entry-date {
+            color: #8b4513;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+
+        /* Custom scrollbars for all elements */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f0e6d3;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #8b4513;
+            border-radius: 5px;
+            border: 2px solid #f0e6d3;
+        }
+
+        /* Add autosave notification */
+        .autosave-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #8b4513;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 3px;
+            display: none;
+            font-family: Arial, sans-serif;
+        }
+
+        /* Delete Button Styling */
+        .delete-btn {
+            background: none;
+            border: none;
+            color: #8b4513;
+            cursor: pointer;
+            float: right;
+            font-size: 1.2em;
+            padding: 0 5px;
+        }
+
+        .delete-btn:hover {
+            color: #6b3010;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Gochi+Hand&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h2>Journal Entries</h2>
+            <ul class="entries-list" id="entriesList"></ul>
+        </div>
+
+        <div class="editor-container">
+            <input type="text" class="entry-title" id="entryTitle" placeholder="Entry Title">
+            <div class="entry-date" id="entryDate"></div>
+            <textarea id="journalEntry" placeholder="Dear Diary..."></textarea>
+            <button class="save-btn" id="saveButton" onclick="saveEntry()">Save Entry</button>
+        </div>
+    </div>
+
+    <div class="autosave-status" id="autosaveStatus">Auto-saved</div>
+
+    <script>
+        // Auto-save every 30 seconds
+        let autosaveInterval;
+        const AUTO_SAVE_INTERVAL = 30000; // 30 seconds
+
+        function startAutosave() {
+            autosaveInterval = setInterval(() => {
+                if (document.getElementById('journalEntry').value.trim()) {
+                    saveEntry();
+                    showAutosaveNotification();
+                }
+            }, AUTO_SAVE_INTERVAL);
+        }
+
+        function showAutosaveNotification() {
+            const status = document.getElementById('autosaveStatus');
+            status.textContent = 'Auto-saved at ' + new Date().toLocaleTimeString();
+            status.style.display = 'block';
+            setTimeout(() => status.style.display = 'none', 3000);
+        }
+
+        // Initialize autosave on load
+        window.onload = function () {
+            document.getElementById('entryDate').textContent = new Date().toLocaleString();
+            loadEntries();
+            startAutosave();
+
+            // Save on any input change
+            document.getElementById('journalEntry').addEventListener('input', () => {
+                if (document.getElementById('journalEntry').value.trim()) {
+                    saveEntry();
+                }
+            });
+
+            document.getElementById('entryTitle').addEventListener('input', () => {
+                if (document.getElementById('journalEntry').value.trim()) {
+                    saveEntry();
+                }
+            });
+        };
+
+        // Modified saveEntry function
+        function saveEntry() {
+            const saveButton = document.getElementById('saveButton');
+            const originalText = saveButton.textContent;
+            const title = document.getElementById('entryTitle').value || 'Untitled';
+            const text = document.getElementById('journalEntry').value;
+            const currentDate = document.getElementById('entryDate').textContent;
+
+            // Don't save if empty
+            if (!text.trim() && !title.trim()) {
+                saveButton.textContent = 'Nothing to save!';
+                saveButton.style.backgroundColor = '#ff4444';
+                setTimeout(() => {
+                    saveButton.textContent = originalText;
+                    saveButton.style.backgroundColor = '#8b4513';
+                }, 2000);
+                return;
+            }
+
+            // Show saving state
+            saveButton.textContent = 'Saving...';
+            saveButton.style.backgroundColor = '#6b3010';
+
+            const entry = {
+                title: title,
+                date: currentDate,
+                content: text
+            };
+
+            const entries = JSON.parse(localStorage.getItem('journalEntries') || '[]');
+            const existingIndex = entries.findIndex(e => e.date === currentDate);
+
+            if (existingIndex > -1) {
+                entries[existingIndex] = entry;
+            } else {
+                entry.date = new Date().toLocaleString();
+                entries.push(entry);
+                document.getElementById('entryDate').textContent = entry.date;
+            }
+
+            localStorage.setItem('journalEntries', JSON.stringify(entries));
+            loadEntries();
+
+            // After saving completes
+            setTimeout(() => {
+                saveButton.textContent = 'Saved!';
+                saveButton.style.backgroundColor = '#4CAF50';
+                showAutosaveNotification();
+
+                // Revert after 2 seconds
+                setTimeout(() => {
+                    saveButton.textContent = 'Save Entry';
+                    saveButton.style.backgroundColor = '#8b4513';
+                }, 2000);
+            }, 300);
+        }
+
+        function loadEntries() {
+            const entries = JSON.parse(localStorage.getItem('journalEntries') || '[]');
+            const list = document.getElementById('entriesList');
+            list.innerHTML = '';
+
+            entries.forEach((entry, index) => {
+                const li = document.createElement('li');
+                li.className = 'entry-item';
+                li.innerHTML = `
+                    <strong>${entry.title}</strong>
+                    <div style="color: #666; font-size: 0.8em">${entry.date}</div>
+                    ${entry.content.substring(0, 50)}...
+                    <button class="delete-btn" onclick="event.stopPropagation(); deleteEntry(${index})">×</button>
+                `;
+                li.onclick = () => displayEntry(index);
+                list.appendChild(li);
+            });
+        }
+
+        function displayEntry(index) {
+            const entries = JSON.parse(localStorage.getItem('journalEntries') || '[]');
+            const entry = entries[index];
+            if (entry) {
+                document.getElementById('entryTitle').value = entry.title;
+                document.getElementById('entryDate').textContent = entry.date;
+                document.getElementById('journalEntry').value = entry.content;
+            }
+        }
+
+        // New deleteEntry function
+        function deleteEntry(index) {
+            const entries = JSON.parse(localStorage.getItem('journalEntries') || '[]');
+            entries.splice(index, 1);
+            localStorage.setItem('journalEntries', JSON.stringify(entries));
+            loadEntries();
+            clearEditor();
+        }
+
+        function clearEditor() {
+            document.getElementById('entryTitle').value = '';
+            document.getElementById('journalEntry').value = '';
+            document.getElementById('entryDate').textContent = new Date().toLocaleString();
+        }
+    </script>
+</body>
+
+</html>
